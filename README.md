@@ -32,8 +32,17 @@ docker compose up -d
 Open **http://localhost:8069** and create your first database. Custom modules in
 `addons/` appear under Apps (enable Developer Mode → Apps → Update Apps List).
 
-> Change the default passwords (`odoo` in `docker-compose.yml`) and the
-> `admin_passwd` in `config/odoo.conf` before any real use.
+### Credentials
+
+| What | Where | Default |
+|------|-------|---------|
+| **Master Password** (database manager: create/backup/restore) | `admin_passwd` in `config/odoo.conf` | `admin123` |
+| Database user / password | `docker-compose.yml` (`POSTGRES_*`) and `config/odoo.conf` | `odoo` / `odoo` |
+
+> ⚠️ **Change all of these before deploying** (especially before the stack is
+> internet-facing on a subdomain). The Master Password `admin123` guards database
+> creation/backups, so set it to something strong. Avoid committing real secrets
+> to the repo — keep production credentials out of version control.
 
 ## Custom module: `pos_food_tickets`
 
