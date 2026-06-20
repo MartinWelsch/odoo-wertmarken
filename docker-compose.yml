@@ -33,8 +33,9 @@ services:
       db:
         condition: service_healthy
     ports:
-      - "8069:8069"   # web client
-      - "8072:8072"   # longpolling / live chat (gevent)
+      # Bound to localhost only — reach Odoo through the Apache reverse proxy.
+      - "127.0.0.1:8069:8069"   # web client
+      - "127.0.0.1:8072:8072"   # websocket / longpolling (gevent)
     environment:
       # Connection details consumed by the Odoo entrypoint.
       - HOST=db

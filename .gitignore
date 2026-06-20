@@ -1,0 +1,9 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Playwright MCP artifacts (snapshots / screenshots)
+.playwright-mcp/
+
+# Local test screenshot
+/receipt-with-food-tickets.png
