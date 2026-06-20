@@ -1,0 +1,51 @@
+# Single-command Odoo stack: `docker compose up -d`
+# Based on the official image instructions at https://hub.docker.com/_/odoo
+#
+# Odoo needs a running PostgreSQL server. Compose's default network lets the
+# `web` service reach the `db` service by its service name, so HOST=db works
+# without the legacy `--link` flag from the docs.
+
+services:
+  db:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      # These must stay in sync with the USER / PASSWORD on the web service.
+      - POSTGRES_USER=odoo
+      - POSTGRES_PASSWORD=odoo
+      # The image initializes a `postgres` maintenance DB; Odoo creates its own
+      # databases at runtime, so leave POSTGRES_DB at its default.
+      - POSTGRES_DB=postgres
+      # Keep the data in a subfolder so the named volume stays clean.
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - odoo-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "odoo", "-d", "postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    image: odoo:17.0
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8069:8069"   # web client
+      - "8072:8072"   # longpolling / live chat (gevent)
+    environment:
+      # Connection details consumed by the Odoo entrypoint.
+      - HOST=db
+      - PORT=5432
+      - USER=odoo
+      - PASSWORD=odoo
+    volumes:
+      - odoo-web-data:/var/lib/odoo        # filestore + sessions
+      - ./config:/etc/odoo                 # odoo.conf lives here
+      - ./addons:/mnt/extra-addons         # drop custom modules here
+
+volumes:
+  odoo-db-data:
+  odoo-web-data:
