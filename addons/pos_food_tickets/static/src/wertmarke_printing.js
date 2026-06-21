@@ -109,14 +109,18 @@ async function printWertmarken(printer, order) {
         if (printer.device) {
             for (const ticket of tickets) {
                 const el = buildWertmarkeEl(ticket);
-                // htmlToCanvas needs the element in the DOM to lay it out; keep it
-                // off-screen while printing, then remove it.
-                Object.assign(el.style, { position: "fixed", left: "-10000px", top: "0" });
-                document.body.appendChild(el);
+                // htmlToCanvas needs the element laid out in the DOM. Mirror Odoo's
+                // own RenderContainer: a normal-flow .pos-receipt inside an
+                // off-screen wrapper. Putting position:fixed on the element itself
+                // makes html-to-image rasterise it BLANK (the "leere Wertmarke" bug).
+                const offscreen = document.createElement("div");
+                Object.assign(offscreen.style, { position: "fixed", left: "-1000px", top: "0" });
+                offscreen.appendChild(el);
+                document.body.appendChild(offscreen);
                 try {
                     await printer.printHtml(el, {});
                 } finally {
-                    el.remove();
+                    offscreen.remove();
                 }
             }
         } else {
