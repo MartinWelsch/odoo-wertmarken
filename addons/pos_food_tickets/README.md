@@ -1,29 +1,31 @@
 # POS Food Tickets
 
-Extends the Odoo 17 Point of Sale **receipt** so it prints the normal receipt
-followed by **one page per individual item** bought — each a redeemable paper
-food token (ordering `3 × Burger` adds 3 Burger ticket pages after the receipt).
+Prints a redeemable **Wertmarke** (food token) for **each individual item** bought
+in the Odoo 17 Point of Sale (ordering `3 × Burger` prints 3 Burger tokens), in
+addition to the normal receipt.
 
-- One ticket page per **unit** (quantity honoured; fractions floored).
+- One token per **unit** (quantity honoured; fractions floored).
 - Refund / zero / negative lines are skipped.
-- **Single print job** — no second print, no race conditions.
+- On an **ePOS / IoT printer each token is a separate print job**, so the printer
+  **cuts the paper between every token**.
 - Paper-only: no scanning, no backend tracking, no recurring license.
 
 ## How it works
 
-The module extends the shared `OrderReceipt` OWL component, so it applies to
-**every** way a receipt is produced (automatic printing after payment *and* the
-manual "Print Receipt" button) without patching any screen:
+`static/src/wertmarke_printing.js` patches the two POS print entry points — the
+manual "Print Receipt" button (`ReceiptScreen.printReceipt`) and automatic
+printing after payment (`PaymentScreen.afterOrderValidation`, when
+`iface_print_auto` is on). After the receipt prints, it prints one token per unit:
 
-| File | Purpose |
-|------|---------|
-| `static/src/order_receipt_inherit.js` | Adds a `foodTickets` getter that expands order-line quantities into one ticket per unit, read from `props.data.orderlines`. |
-| `static/src/order_receipt_inherit.xml` | `t-inherit` of `point_of_sale.OrderReceipt` that appends one ticket block per unit, each with `page-break-before: always` so it starts a new page. |
+- **Hardware printer present** → builds each token's HTML and sends it through
+  `printer.printHtml(el)` — one print job per token, so the printer cuts between
+  each. (We build the element directly instead of going through the POS render
+  service, whose `toHtml()` hangs for standalone components.)
+- **No printer (browser)** → renders all tokens into one isolated iframe (a
+  print preview, one page each — no cutter in a browser).
 
-Because everything lives in the single receipt render, there is only one print
-job. On thermal/ESC-POS paper the page breaks become continuous strip with the
-tickets separated by dashed lines; in browser/PDF printing each ticket is its
-own page.
+The whole routine is idempotent and wrapped in `try/catch`, so a printing problem
+can never break order finalisation.
 
 ## Install
 
@@ -31,27 +33,27 @@ The module lives in the `addons/` folder mounted into the `web` container at
 `/mnt/extra-addons`.
 
 ```bash
-docker compose up -d
-# install (or update) into a database named `test`:
-docker compose exec web odoo -d test -u pos_food_tickets --stop-after-init
+docker compose exec web odoo -d <db> -u pos_food_tickets --stop-after-init
 docker compose restart web
 ```
 
 Or from the UI: Developer Mode → Apps → Update Apps List → install **POS Food Tickets**.
 
-> **After installing/updating, reload the POS in the browser.** The POS registers
-> a service worker that caches its assets. If your changes don't appear:
-> F12 → Application → Service Workers → **Unregister**, then Clear site data, then reload.
+> **After installing/updating you must restart `web` AND reload the POS in the
+> browser.** The server caches the add-on's asset file list at startup, and the
+> POS caches its JS via a service worker. If changes don't appear:
+> `docker compose restart web`, then F12 → Application → Service Workers →
+> **Unregister** → Clear site data → reload.
 
 ## Test
 
 1. Open a POS session, add e.g. `2 × Fries` and `1 × Burger`, and pay.
-2. On the Receipt screen (or in the print preview) you'll see the normal receipt
-   followed by three ticket sections: Fries (Item 1 of 2), Fries (Item 2 of 2),
-   Burger. No physical printer required — the sections render on screen too.
+2. On an ePOS/IoT printer you get the receipt, then 3 separate cut tokens
+   (Fries, Fries, Burger). In a browser without a printer, the tokens appear in a
+   print preview (one page each).
 
 ## Customise
 
-- **Ticket layout/text**: edit `static/src/order_receipt_inherit.xml`.
+- **Token layout/text**: edit `wertmarkeMarkup()` in `static/src/wertmarke_printing.js`.
 - **Only print tokens for certain products** (e.g. exclude deposits/tips): filter
-  inside the `foodTickets` getter in `static/src/order_receipt_inherit.js`.
+  inside `collectTickets()` in the same file.
