@@ -19,7 +19,8 @@ function wertmarkeMarkup(ticket) {
             `${escapeHtml(ticket.productName)}</div>` +
         `<div style="border-top:1px dashed #000; margin:6px 0;"></div>` +
         (ticket.orderName ? `<div style="font-size:12px;">${escapeHtml(ticket.orderName)}</div>` : "") +
-        (ticket.datetime ? `<div style="font-size:12px;">${escapeHtml(ticket.datetime)}</div>` : "")
+        (ticket.datetime ? `<div style="font-size:12px;">${escapeHtml(ticket.datetime)}</div>` : "") +
+        `<div style="height:40px;"></div>`
     );
 }
 
